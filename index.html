@@ -1,0 +1,1497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cricket Auction House</title>
+  <style>
+/* ══════════════════════════════════════════
+   DESIGN TOKENS
+   Palette: deep navy → warm amber auction feel
+   ══════════════════════════════════════════ */
+:root {
+  --bg:          #0b0e1a;
+  --bg2:         #111527;
+  --bg3:         #181d32;
+  --glass:       rgba(255,255,255,0.04);
+  --glass-hover: rgba(255,255,255,0.07);
+  --border:      rgba(255,255,255,0.08);
+
+  --amber:       #f59e0b;
+  --amber-lite:  #fbbf24;
+  --amber-dark:  #92400e;
+  --green:       #22c55e;
+  --red:         #ef4444;
+  --blue:        #3b82f6;
+  --purple:      #8b5cf6;
+
+  --text:        #e2e8f0;
+  --text-muted:  #64748b;
+  --text-dim:    #94a3b8;
+
+  --radius:      12px;
+  --radius-lg:   20px;
+  --transition:  0.22s ease;
+}
+
+/* ══════════════════════════════════════════
+   RESET & BASE
+══════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 16px; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.hidden { display: none !important; }
+
+/* ══════════════════════════════════════════
+   SCREENS
+══════════════════════════════════════════ */
+.screen { display: none; min-height: 100vh; }
+.screen.active { display: block; }
+
+/* ══════════════════════════════════════════
+   SETUP SCREEN
+══════════════════════════════════════════ */
+#setup-screen {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  overflow: hidden;
+}
+
+/* Decorative cricket pitch lines in background */
+.setup-bg-art {
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 60px,
+      rgba(245,158,11,0.03) 60px,
+      rgba(245,158,11,0.03) 61px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 60px,
+      rgba(245,158,11,0.03) 60px,
+      rgba(245,158,11,0.03) 61px
+    );
+  pointer-events: none;
+}
+
+.setup-container {
+  position: relative;
+  z-index: 1;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 3rem 2.5rem;
+  width: 100%;
+  max-width: 680px;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.5);
+}
+
+.setup-badge {
+  display: inline-block;
+  background: rgba(245,158,11,0.15);
+  border: 1px solid rgba(245,158,11,0.3);
+  color: var(--amber);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  padding: 0.3rem 0.9rem;
+  border-radius: 999px;
+  margin-bottom: 1.2rem;
+}
+
+.setup-title {
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.6rem;
+  color: #fff;
+}
+.setup-title span { color: var(--amber); }
+
+.setup-sub {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  margin-bottom: 2rem;
+}
+
+.setup-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.2rem;
+  margin-bottom: 1.4rem;
+}
+
+.setup-field { display: flex; flex-direction: column; gap: 0.4rem; }
+.setup-field.full { grid-column: 1 / -1; }
+
+.setup-field label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+.label-hint {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.setup-field input,
+.setup-field textarea {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 0.95rem;
+  padding: 0.75rem 1rem;
+  outline: none;
+  resize: vertical;
+  transition: border-color var(--transition);
+  font-family: inherit;
+}
+.setup-field input:focus,
+.setup-field textarea:focus {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 3px rgba(245,158,11,0.12);
+}
+.setup-field textarea { min-height: 140px; }
+::placeholder { color: var(--text-muted); }
+
+.setup-error {
+  background: rgba(239,68,68,0.12);
+  border: 1px solid rgba(239,68,68,0.3);
+  border-radius: var(--radius);
+  color: #fca5a5;
+  font-size: 0.85rem;
+  padding: 0.7rem 1rem;
+  margin-bottom: 1rem;
+}
+
+/* ══════════════════════════════════════════
+   BUTTONS
+══════════════════════════════════════════ */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: linear-gradient(135deg, var(--amber) 0%, #d97706 100%);
+  color: #000;
+  font-weight: 700;
+  font-size: 1rem;
+  border: none;
+  border-radius: var(--radius);
+  padding: 0.85rem 2rem;
+  cursor: pointer;
+  transition: transform var(--transition), box-shadow var(--transition), opacity var(--transition);
+}
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(245,158,11,0.35);
+}
+.btn-primary:active { transform: translateY(0); }
+
+.btn-large { width: 100%; justify-content: center; font-size: 1.1rem; padding: 1rem; }
+
+.btn-ghost {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+.btn-ghost:hover { background: var(--glass-hover); color: var(--text); }
+
+/* ══════════════════════════════════════════
+   TOP BAR
+══════════════════════════════════════════ */
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 1.5rem;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  gap: 1rem;
+}
+
+.top-logo {
+  font-weight: 800;
+  font-size: 0.9rem;
+  letter-spacing: 0.12em;
+  color: var(--amber);
+  white-space: nowrap;
+}
+
+.top-stats {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.top-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.ts-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.ts-value {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+}
+.ts-value.accent { color: var(--amber); }
+
+/* ══════════════════════════════════════════
+   AUCTION LAYOUT
+══════════════════════════════════════════ */
+.auction-layout {
+  display: grid;
+  grid-template-columns: 240px 1fr 240px;
+  gap: 1rem;
+  padding: 1rem;
+  min-height: calc(100vh - 57px - 180px);
+  align-items: start;
+}
+
+/* ══════════════════════════════════════════
+   CAPTAIN PANELS
+══════════════════════════════════════════ */
+.captain-panel { position: sticky; top: 72px; }
+
+.cap-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.4rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8rem;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.cap-card.active-turn {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 2px rgba(245,158,11,0.2), 0 12px 40px rgba(245,158,11,0.1);
+}
+
+.cap-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--amber), #d97706);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1rem;
+  color: #000;
+}
+
+.cap-name {
+  font-weight: 700;
+  font-size: 1rem;
+  text-align: center;
+  color: var(--text);
+}
+
+.cap-turn-badge {
+  background: linear-gradient(135deg, var(--amber), #d97706);
+  color: #000;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  padding: 0.2rem 0.7rem;
+  border-radius: 999px;
+  animation: pulse-badge 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-badge {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.cap-stats {
+  display: flex;
+  gap: 1.2rem;
+  width: 100%;
+  justify-content: center;
+}
+
+.cap-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.cs-label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.cs-value {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text);
+}
+.cs-value.green { color: var(--green); }
+
+.cap-team-section { width: 100%; }
+
+.cap-team-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.cap-team-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  max-height: 240px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.empty-team {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  text-align: center;
+  padding: 0.8rem 0;
+  font-style: italic;
+}
+
+.team-player {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.78rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  animation: slide-in 0.3s ease;
+}
+
+.team-player-name { color: var(--text-dim); font-weight: 500; }
+.team-player-price { color: var(--amber); font-weight: 700; font-size: 0.72rem; }
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ══════════════════════════════════════════
+   CENTER AUCTION AREA
+══════════════════════════════════════════ */
+.auction-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1rem 0;
+}
+
+/* Player Spotlight */
+.player-spotlight {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.spotlight-glow {
+  position: absolute;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, rgba(245,158,11,0.18) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+@keyframes glow-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 0.7; }
+}
+
+.player-card {
+  position: relative;
+  background: var(--bg2);
+  border: 2px solid var(--amber);
+  border-radius: var(--radius-lg);
+  padding: 2.5rem 3rem;
+  text-align: center;
+  min-width: 260px;
+  box-shadow:
+    0 0 0 4px rgba(245,158,11,0.08),
+    0 24px 60px rgba(0,0,0,0.4);
+  animation: card-enter 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes card-enter {
+  from { opacity: 0; transform: scale(0.8) translateY(20px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.pc-number {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--amber);
+  color: #000;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  letter-spacing: 0.08em;
+}
+
+.pc-name {
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.01em;
+  margin-top: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+
+.pc-badge {
+  display: inline-block;
+  background: rgba(245,158,11,0.15);
+  border: 1px solid rgba(245,158,11,0.3);
+  color: var(--amber);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  padding: 0.2rem 0.7rem;
+  border-radius: 999px;
+}
+
+/* Bid Display */
+.bid-display {
+  text-align: center;
+}
+
+.bid-amount {
+  font-size: clamp(2.5rem, 6vw, 4rem);
+  font-weight: 900;
+  color: var(--amber);
+  letter-spacing: -0.02em;
+  line-height: 1;
+  text-shadow: 0 0 30px rgba(245,158,11,0.4);
+  transition: all 0.2s ease;
+}
+
+.bid-amount.bump {
+  animation: bid-bump 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes bid-bump {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+.bid-turn {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-top: 0.3rem;
+  letter-spacing: 0.05em;
+}
+
+/* Bid Controls */
+.bid-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+  width: 100%;
+  max-width: 420px;
+}
+
+.bid-buttons {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.6rem;
+  width: 100%;
+}
+
+.btn-bid {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 0.85rem 0;
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition), transform var(--transition), box-shadow var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-bid::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(245,158,11,0.3), rgba(245,158,11,0.05));
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+.btn-bid:hover:not(:disabled)::after { opacity: 1; }
+
+.btn-bid:hover:not(:disabled) {
+  border-color: var(--amber);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(245,158,11,0.2);
+}
+
+.btn-bid:active:not(:disabled) { transform: translateY(0); }
+
+.btn-bid:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.btn-release {
+  width: 100%;
+  background: linear-gradient(135deg, #7f1d1d, #991b1b);
+  border: 1px solid rgba(239,68,68,0.3);
+  border-radius: var(--radius);
+  color: #fca5a5;
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 0.85rem;
+  cursor: pointer;
+  transition: all var(--transition);
+  letter-spacing: 0.02em;
+}
+
+.btn-release:hover {
+  background: linear-gradient(135deg, #991b1b, #b91c1c);
+  box-shadow: 0 6px 20px rgba(239,68,68,0.2);
+  transform: translateY(-1px);
+}
+
+.btn-release:active { transform: translateY(0); }
+
+/* ══════════════════════════════════════════
+   UPCOMING QUEUE
+══════════════════════════════════════════ */
+.upcoming-section { width: 100%; max-width: 460px; }
+
+.upcoming-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+  margin-bottom: 0.6rem;
+  text-align: center;
+}
+
+.upcoming-queue {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.queue-chip {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.3rem 0.75rem;
+  white-space: nowrap;
+}
+
+/* ══════════════════════════════════════════
+   AUCTION LOG
+══════════════════════════════════════════ */
+.log-section {
+  background: var(--bg2);
+  border-top: 1px solid var(--border);
+  padding: 0.8rem 1.5rem 1rem;
+}
+
+.log-header {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.log-feed {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  max-height: 72px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.log-entry {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  padding: 0.25rem 0.75rem;
+  white-space: nowrap;
+  animation: fade-in 0.3s ease;
+}
+
+.log-entry.won   { border-color: rgba(34,197,94,0.3);  color: #86efac; }
+.log-entry.bid   { border-color: rgba(245,158,11,0.2); color: #fcd34d; }
+.log-entry.new   { border-color: rgba(59,130,246,0.3); color: #93c5fd; }
+.log-entry.release { border-color: rgba(239,68,68,0.25); color: #fca5a5; }
+
+@keyframes fade-in {
+  from { opacity: 0; transform: scale(0.9); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* ══════════════════════════════════════════
+   RESULT SCREEN
+══════════════════════════════════════════ */
+#result-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  background: var(--bg);
+}
+
+.result-container {
+  width: 100%;
+  max-width: 800px;
+  text-align: center;
+}
+
+.result-title {
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.4rem;
+}
+
+.result-subtitle {
+  color: var(--text-muted);
+  font-size: 1rem;
+  margin-bottom: 2.5rem;
+}
+
+.result-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.result-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 2rem 1.5rem;
+  text-align: left;
+}
+
+.result-card.winner-card {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 2px rgba(245,158,11,0.15), 0 20px 60px rgba(245,158,11,0.1);
+}
+
+.rc-cap {
+  font-size: 1.3rem;
+  font-weight: 800;
+  margin-bottom: 0.3rem;
+}
+
+.rc-stats {
+  display: flex;
+  gap: 1rem;
+  margin: 0.8rem 0 1.2rem;
+}
+
+.rc-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.rc-stat span:first-child {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.rc-stat span:last-child {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--amber);
+}
+
+.rc-team-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.rc-team-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.rc-player {
+  display: flex;
+  justify-content: space-between;
+  background: var(--glass);
+  border-radius: 8px;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.82rem;
+}
+.rc-player-name { color: var(--text-dim); }
+.rc-player-price { color: var(--amber); font-weight: 700; }
+
+.winner-crown {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--amber);
+  margin-bottom: 0.5rem;
+}
+
+/* ══════════════════════════════════════════
+   TOAST
+══════════════════════════════════════════ */
+.toast {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: #1e293b;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.7rem 1.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  z-index: 999;
+  opacity: 0;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  white-space: nowrap;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.toast.warn { border-color: rgba(239,68,68,0.4); color: #fca5a5; }
+
+/* ══════════════════════════════════════════
+   SCROLLBAR STYLING
+══════════════════════════════════════════ */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+
+/* ══════════════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════════════ */
+@media (max-width: 900px) {
+  .auction-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+  }
+
+  .captain-panel {
+    position: static;
+  }
+
+  .left  { order: 2; }
+  .auction-center { order: 1; }
+  .right { order: 3; }
+
+  .cap-card { flex-direction: row; flex-wrap: wrap; justify-content: space-between; }
+  .cap-avatar { width: 40px; height: 40px; font-size: 0.8rem; }
+  .cap-team-section { width: 100%; }
+
+  .top-stats { display: none; }
+}
+
+@media (max-width: 600px) {
+  .setup-grid { grid-template-columns: 1fr; }
+  .setup-container { padding: 2rem 1.2rem; }
+  .bid-buttons { grid-template-columns: repeat(2, 1fr); }
+  .top-bar { padding: 0.7rem 1rem; }
+}
+
+</style>
+</head>
+<body>
+
+  <!-- ══════════════════════════════════════════
+       SETUP SCREEN
+  ══════════════════════════════════════════ -->
+  <div id="setup-screen" class="screen active">
+    <div class="setup-bg-art"></div>
+    <div class="setup-container">
+      <div class="setup-badge">🏏 AUCTION HOUSE</div>
+      <h1 class="setup-title">Cricket Player<br><span>Auction</span></h1>
+      <p class="setup-sub">Enter captains & squad, then start the bidding war.</p>
+
+      <div class="setup-grid">
+        <div class="setup-field">
+          <label>Captain 1 Name</label>
+          <input id="cap1-name" type="text" placeholder="e.g. Rohit Sharma" maxlength="20" />
+        </div>
+        <div class="setup-field">
+          <label>Captain 2 Name</label>
+          <input id="cap2-name" type="text" placeholder="e.g. Virat Kohli" maxlength="20" />
+        </div>
+        <div class="setup-field full">
+          <label>Player Squad <span class="label-hint">(one per line, min 3)</span></label>
+          <textarea id="player-list" rows="8" placeholder="Sachin Tendulkar&#10;MS Dhoni&#10;Jasprit Bumrah&#10;Ravindra Jadeja&#10;KL Rahul&#10;Shubman Gill&#10;Hardik Pandya&#10;Suryakumar Yadav"></textarea>
+        </div>
+      </div>
+
+      <div id="setup-error" class="setup-error hidden"></div>
+
+      <button id="start-btn" class="btn-primary btn-large">
+        <span>⚡</span> Start Auction
+      </button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       AUCTION SCREEN
+  ══════════════════════════════════════════ -->
+  <div id="auction-screen" class="screen">
+
+    <!-- Top Bar -->
+    <header class="top-bar">
+      <div class="top-bar-left">
+        <div class="top-logo">🏏 AUCTION HOUSE</div>
+      </div>
+      <div class="top-stats">
+        <div class="top-stat">
+          <span class="ts-label">CURRENT PLAYER</span>
+          <span class="ts-value" id="hdr-player">—</span>
+        </div>
+        <div class="top-stat">
+          <span class="ts-label">CURRENT BID</span>
+          <span class="ts-value accent" id="hdr-bid">₹0</span>
+        </div>
+        <div class="top-stat">
+          <span class="ts-label">LEADING</span>
+          <span class="ts-value" id="hdr-leader">—</span>
+        </div>
+        <div class="top-stat">
+          <span class="ts-label">REMAINING</span>
+          <span class="ts-value" id="hdr-remaining">—</span>
+        </div>
+      </div>
+      <div class="top-bar-right">
+        <button id="restart-btn" class="btn-ghost">↺ Restart</button>
+      </div>
+    </header>
+
+    <!-- Main Layout -->
+    <div class="auction-layout">
+
+      <!-- LEFT: Captain 1 -->
+      <aside class="captain-panel left" id="cap1-panel">
+        <div class="cap-card" id="cap1-card">
+          <div class="cap-avatar">C1</div>
+          <div class="cap-name" id="cap1-display-name">Captain 1</div>
+          <div class="cap-turn-badge hidden" id="cap1-turn-badge">YOUR TURN</div>
+          <div class="cap-stats">
+            <div class="cap-stat">
+              <span class="cs-label">Bounty</span>
+              <span class="cs-value green" id="cap1-bounty">₹1000</span>
+            </div>
+            <div class="cap-stat">
+              <span class="cs-label">Squad</span>
+              <span class="cs-value" id="cap1-team-size">0</span>
+            </div>
+          </div>
+          <div class="cap-team-section">
+            <div class="cap-team-label">SQUAD</div>
+            <div class="cap-team-list" id="cap1-team-list">
+              <div class="empty-team">No players yet</div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- CENTER: Auction Area -->
+      <main class="auction-center">
+
+        <!-- Player Card -->
+        <div class="player-spotlight" id="player-spotlight">
+          <div class="spotlight-glow"></div>
+          <div class="player-card" id="player-card">
+            <div class="pc-number" id="pc-number">#1</div>
+            <div class="pc-name" id="pc-name">Player Name</div>
+            <div class="pc-badge">ON AUCTION</div>
+          </div>
+        </div>
+
+        <!-- Bid Display -->
+        <div class="bid-display">
+          <div class="bid-amount" id="bid-amount">₹0</div>
+          <div class="bid-turn" id="bid-turn">Waiting…</div>
+        </div>
+
+        <!-- Bid Controls -->
+        <div class="bid-controls">
+          <div class="bid-buttons">
+            <button class="btn-bid" data-amount="10" id="bid-10">+10</button>
+            <button class="btn-bid" data-amount="20" id="bid-20">+20</button>
+            <button class="btn-bid" data-amount="50" id="bid-50">+50</button>
+            <button class="btn-bid" data-amount="100" id="bid-100">+100</button>
+          </div>
+          <button id="release-btn" class="btn-release">
+            🏳 Release — Pass to Opponent
+          </button>
+        </div>
+
+        <!-- Upcoming Queue -->
+        <div class="upcoming-section">
+          <div class="upcoming-label">UP NEXT</div>
+          <div class="upcoming-queue" id="upcoming-queue"></div>
+        </div>
+      </main>
+
+      <!-- RIGHT: Captain 2 -->
+      <aside class="captain-panel right" id="cap2-panel">
+        <div class="cap-card" id="cap2-card">
+          <div class="cap-avatar">C2</div>
+          <div class="cap-name" id="cap2-display-name">Captain 2</div>
+          <div class="cap-turn-badge hidden" id="cap2-turn-badge">YOUR TURN</div>
+          <div class="cap-stats">
+            <div class="cap-stat">
+              <span class="cs-label">Bounty</span>
+              <span class="cs-value green" id="cap2-bounty">₹1000</span>
+            </div>
+            <div class="cap-stat">
+              <span class="cs-label">Squad</span>
+              <span class="cs-value" id="cap2-team-size">0</span>
+            </div>
+          </div>
+          <div class="cap-team-section">
+            <div class="cap-team-label">SQUAD</div>
+            <div class="cap-team-list" id="cap2-team-list">
+              <div class="empty-team">No players yet</div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Auction Log -->
+    <div class="log-section">
+      <div class="log-header">📋 LIVE AUCTION LOG</div>
+      <div class="log-feed" id="log-feed"></div>
+    </div>
+
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       RESULT SCREEN
+  ══════════════════════════════════════════ -->
+  <div id="result-screen" class="screen">
+    <div class="result-container">
+      <div class="result-title">🏆 Auction Complete</div>
+      <div class="result-subtitle">Final Squad Summary</div>
+      <div class="result-cards" id="result-cards"></div>
+      <button id="play-again-btn" class="btn-primary btn-large" style="margin-top:2rem;">
+        ↺ New Auction
+      </button>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script>
+/* ══════════════════════════════════════════
+   CRICKET PLAYER AUCTION GAME
+   State-driven, pure Vanilla JS
+══════════════════════════════════════════ */
+
+/* ── STATE ─────────────────────────────── */
+const STATE = {
+  captains: [
+    { name: '', bounty: 1000, team: [] },
+    { name: '', bounty: 1000, team: [] }
+  ],
+  auctionQueue: [],   // remaining players to auction
+  currentPlayer: null,
+  currentBid: 0,
+  currentTurn: 0,     // 0 = cap 1's turn, 1 = cap 2's turn
+  highestBidder: -1,  // index of captain with highest bid (-1 = no bids yet)
+  auctionLogs: [],
+  phase: 'setup'      // 'setup' | 'auction' | 'result'
+};
+
+/* ── DOM REFS ───────────────────────────── */
+const $ = id => document.getElementById(id);
+const setupScreen   = $('setup-screen');
+const auctionScreen = $('auction-screen');
+const resultScreen  = $('result-screen');
+
+/* ══════════════════════════════════════════
+   SETUP PHASE
+══════════════════════════════════════════ */
+$('start-btn').addEventListener('click', startAuction);
+
+function startAuction() {
+  const cap1 = $('cap1-name').value.trim();
+  const cap2 = $('cap2-name').value.trim();
+  const rawPlayers = $('player-list').value.trim();
+
+  // Validation
+  const err = $('setup-error');
+  if (!cap1 || !cap2) {
+    showSetupError('Please enter names for both captains.');
+    return;
+  }
+  if (cap1.toLowerCase() === cap2.toLowerCase()) {
+    showSetupError('Captain names must be different.');
+    return;
+  }
+
+  const players = rawPlayers
+    .split('\n')
+    .map(p => p.trim())
+    .filter(p => p.length > 0);
+
+  // Deduplicate players
+  const uniquePlayers = [...new Set(players)];
+
+  if (uniquePlayers.length < 3) {
+    showSetupError('Please enter at least 3 unique players.');
+    return;
+  }
+
+  err.classList.add('hidden');
+
+  // Initialise state
+  STATE.captains[0] = { name: cap1, bounty: 1000, team: [] };
+  STATE.captains[1] = { name: cap2, bounty: 1000, team: [] };
+  STATE.auctionQueue = shuffleArray(uniquePlayers);
+  STATE.auctionLogs = [];
+  STATE.phase = 'auction';
+
+  // Transition to auction screen
+  setupScreen.classList.remove('active');
+  auctionScreen.classList.add('active');
+  auctionScreen.style.display = 'block';
+
+  renderCaptainCards();
+  nextPlayer();
+}
+
+function showSetupError(msg) {
+  const err = $('setup-error');
+  err.textContent = msg;
+  err.classList.remove('hidden');
+}
+
+/* ══════════════════════════════════════════
+   AUCTION PHASE
+══════════════════════════════════════════ */
+
+/** Advance to the next player in the queue */
+function nextPlayer() {
+  if (STATE.auctionQueue.length === 0) {
+    endAuction();
+    return;
+  }
+
+  STATE.currentPlayer = STATE.auctionQueue.shift();
+  STATE.currentBid    = 0;
+  STATE.highestBidder = -1;
+
+  // Always start with captain 0 (bidding order stays consistent)
+  STATE.currentTurn = 0;
+
+  const playerNum = getTotalPlayers() - STATE.auctionQueue.length;
+  addLog(`${STATE.currentPlayer} is up for auction`, 'new');
+
+  updatePlayerCard(playerNum);
+  updateBidDisplay();
+  updateTurnIndicator();
+  updateHeader();
+  updateUpcomingQueue();
+  updateBidButtons();
+}
+
+/** Handle a bid button click */
+function placeBid(amount) {
+  const captain = STATE.captains[STATE.currentTurn];
+
+  // Guard: cannot bid more than remaining bounty
+  const newBid = STATE.currentBid + amount;
+  if (newBid > captain.bounty) {
+    showToast(`⚠️ ${captain.name} doesn't have enough bounty!`, 'warn');
+    return;
+  }
+
+  STATE.currentBid    = newBid;
+  STATE.highestBidder = STATE.currentTurn;
+
+  addLog(`${captain.name} bids ₹${newBid}`, 'bid');
+
+  // Switch turn
+  STATE.currentTurn = STATE.currentTurn === 0 ? 1 : 0;
+
+  updateBidDisplay(true);
+  updateTurnIndicator();
+  updateHeader();
+  updateBidButtons();
+}
+
+/**
+ * Handle release: current captain passes.
+ * If highestBidder exists → they win.
+ * If no bids placed yet → player goes unsold (skipped).
+ */
+function releasePlayer() {
+  const releasingCaptain = STATE.captains[STATE.currentTurn];
+
+  addLog(`${releasingCaptain.name} released`, 'release');
+
+  if (STATE.highestBidder === -1) {
+    // No bids at all → player is unsold
+    addLog(`${STATE.currentPlayer} goes UNSOLD`, 'release');
+    showToast(`${STATE.currentPlayer} went unsold`, '');
+    nextPlayer();
+    return;
+  }
+
+  // The other captain (highest bidder) wins
+  const winner = STATE.captains[STATE.highestBidder];
+  winner.bounty -= STATE.currentBid;
+  winner.team.push({ name: STATE.currentPlayer, price: STATE.currentBid });
+
+  addLog(`🏆 ${winner.name} won ${STATE.currentPlayer} for ₹${STATE.currentBid}`, 'won');
+  showToast(`🏆 ${winner.name} signed ${STATE.currentPlayer} for ₹${STATE.currentBid}!`);
+
+  renderCaptainCards();
+  nextPlayer();
+}
+
+/* ── Render helpers ─────────────────────── */
+
+function updatePlayerCard(playerNum) {
+  $('pc-number').textContent = `#${playerNum}`;
+  $('pc-name').textContent = STATE.currentPlayer;
+
+  // Re-trigger animation
+  const card = $('player-card');
+  card.style.animation = 'none';
+  requestAnimationFrame(() => {
+    card.style.animation = 'card-enter 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
+  });
+}
+
+function updateBidDisplay(bump = false) {
+  const el = $('bid-amount');
+  el.textContent = `₹${STATE.currentBid}`;
+
+  if (bump) {
+    el.classList.remove('bump');
+    requestAnimationFrame(() => el.classList.add('bump'));
+  }
+
+  $('hdr-bid').textContent = `₹${STATE.currentBid}`;
+
+  const leader = STATE.highestBidder >= 0
+    ? STATE.captains[STATE.highestBidder].name
+    : '—';
+  $('hdr-leader').textContent = leader;
+}
+
+function updateTurnIndicator() {
+  const cap = STATE.captains[STATE.currentTurn];
+  $('bid-turn').textContent = `${cap.name}'s turn to bid`;
+
+  // Highlight active captain card
+  $('cap1-card').classList.toggle('active-turn', STATE.currentTurn === 0);
+  $('cap2-card').classList.toggle('active-turn', STATE.currentTurn === 1);
+
+  // Turn badges
+  $('cap1-turn-badge').classList.toggle('hidden', STATE.currentTurn !== 0);
+  $('cap2-turn-badge').classList.toggle('hidden', STATE.currentTurn !== 1);
+}
+
+/** Disable bid buttons if captain can't afford the resulting bid */
+function updateBidButtons() {
+  const captain = STATE.captains[STATE.currentTurn];
+  [10, 20, 50, 100].forEach(amt => {
+    const btn = $(`bid-${amt}`);
+    const wouldBid = STATE.currentBid + amt;
+    btn.disabled = wouldBid > captain.bounty;
+  });
+}
+
+function updateHeader() {
+  $('hdr-player').textContent = STATE.currentPlayer || '—';
+  $('hdr-remaining').textContent = STATE.auctionQueue.length;
+}
+
+function updateUpcomingQueue() {
+  const queue = $('upcoming-queue');
+  const next = STATE.auctionQueue.slice(0, 5);
+
+  if (next.length === 0) {
+    queue.innerHTML = '<div class="queue-chip" style="color:var(--text-muted)">Last player!</div>';
+    return;
+  }
+
+  queue.innerHTML = next
+    .map(p => `<div class="queue-chip">${p}</div>`)
+    .join('');
+}
+
+/** Re-render both captain panels from state */
+function renderCaptainCards() {
+  [0, 1].forEach(i => {
+    const cap = STATE.captains[i];
+    $(`cap${i + 1}-display-name`).textContent = cap.name;
+    $(`cap${i + 1}-bounty`).textContent = `₹${cap.bounty}`;
+    $(`cap${i + 1}-team-size`).textContent = cap.team.length;
+
+    const list = $(`cap${i + 1}-team-list`);
+    if (cap.team.length === 0) {
+      list.innerHTML = '<div class="empty-team">No players yet</div>';
+    } else {
+      list.innerHTML = cap.team.map(p =>
+        `<div class="team-player">
+           <span class="team-player-name">${p.name}</span>
+           <span class="team-player-price">₹${p.price}</span>
+         </div>`
+      ).join('');
+    }
+  });
+}
+
+/** Add an entry to the log feed */
+function addLog(msg, type = '') {
+  STATE.auctionLogs.push({ msg, type });
+
+  const feed = $('log-feed');
+  const chip = document.createElement('div');
+  chip.className = `log-entry ${type}`;
+  chip.textContent = msg;
+  feed.appendChild(chip);
+
+  // Auto-scroll to latest
+  feed.scrollLeft = feed.scrollWidth;
+}
+
+/* ── Utility ────────────────────────────── */
+
+function shuffleArray(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function getTotalPlayers() {
+  // total = sold + unsold (already shifted) + queue + current
+  return STATE.captains[0].team.length
+       + STATE.captains[1].team.length
+       + STATE.auctionQueue.length
+       + 1; // +1 for currentPlayer
+}
+
+let toastTimer = null;
+function showToast(msg, type = '') {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+/* ══════════════════════════════════════════
+   BID BUTTON EVENT LISTENERS
+══════════════════════════════════════════ */
+[10, 20, 50, 100].forEach(amt => {
+  $(`bid-${amt}`).addEventListener('click', () => placeBid(amt));
+});
+
+$('release-btn').addEventListener('click', releasePlayer);
+
+/* ══════════════════════════════════════════
+   END AUCTION → RESULT SCREEN
+══════════════════════════════════════════ */
+function endAuction() {
+  STATE.phase = 'result';
+
+  auctionScreen.classList.remove('active');
+  auctionScreen.style.display = 'none';
+  resultScreen.classList.add('active');
+  resultScreen.style.display = 'flex';
+
+  renderResultScreen();
+}
+
+function renderResultScreen() {
+  const container = $('result-cards');
+  container.innerHTML = '';
+
+  // Determine winner (more players; tie → higher remaining bounty)
+  const [c0, c1] = STATE.captains;
+  let winnerIndex = -1;
+  if (c0.team.length > c1.team.length) winnerIndex = 0;
+  else if (c1.team.length > c0.team.length) winnerIndex = 1;
+  else if (c0.bounty > c1.bounty) winnerIndex = 0;
+  else if (c1.bounty > c0.bounty) winnerIndex = 1;
+
+  STATE.captains.forEach((cap, i) => {
+    const isWinner = i === winnerIndex;
+    const totalSpent = 1000 - cap.bounty;
+
+    const card = document.createElement('div');
+    card.className = `result-card${isWinner ? ' winner-card' : ''}`;
+
+    card.innerHTML = `
+      ${isWinner ? '<div class="winner-crown">🏆 WINNER</div>' : '<div class="winner-crown" style="color:var(--text-muted)">RUNNER UP</div>'}
+      <div class="rc-cap">${cap.name}</div>
+      <div class="rc-stats">
+        <div class="rc-stat">
+          <span>Players</span>
+          <span>${cap.team.length}</span>
+        </div>
+        <div class="rc-stat">
+          <span>Spent</span>
+          <span>₹${totalSpent}</span>
+        </div>
+        <div class="rc-stat">
+          <span>Remaining</span>
+          <span>₹${cap.bounty}</span>
+        </div>
+      </div>
+      <div class="rc-team-label">SQUAD</div>
+      <div class="rc-team-list">
+        ${cap.team.length === 0
+          ? '<div class="empty-team">No players acquired</div>'
+          : cap.team.map(p =>
+              `<div class="rc-player">
+                <span class="rc-player-name">${p.name}</span>
+                <span class="rc-player-price">₹${p.price}</span>
+              </div>`
+            ).join('')
+        }
+      </div>
+    `;
+
+    container.appendChild(card);
+  });
+}
+
+/* ══════════════════════════════════════════
+   RESTART
+══════════════════════════════════════════ */
+function restartGame() {
+  // Reset state
+  STATE.captains    = [{ name: '', bounty: 1000, team: [] }, { name: '', bounty: 1000, team: [] }];
+  STATE.auctionQueue  = [];
+  STATE.currentPlayer = null;
+  STATE.currentBid    = 0;
+  STATE.currentTurn   = 0;
+  STATE.highestBidder = -1;
+  STATE.auctionLogs   = [];
+  STATE.phase         = 'setup';
+
+  // Clear log feed
+  $('log-feed').innerHTML = '';
+
+  // Switch screens
+  auctionScreen.classList.remove('active');
+  auctionScreen.style.display = 'none';
+  resultScreen.classList.remove('active');
+  resultScreen.style.display = 'none';
+  setupScreen.classList.add('active');
+  setupScreen.style.display = 'block';
+
+  // Clear setup inputs for a fresh start
+  $('cap1-name').value = '';
+  $('cap2-name').value = '';
+  $('player-list').value = '';
+  $('setup-error').classList.add('hidden');
+}
+
+$('restart-btn').addEventListener('click', restartGame);
+$('play-again-btn').addEventListener('click', restartGame);
+
+</script>
+</body>
+</html>
